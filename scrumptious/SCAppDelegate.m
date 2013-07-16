@@ -32,7 +32,7 @@
     // ****************************************************************************
     // Add your Parse credentials here
     //
-    // [Parse setApplicationId:YOUR_APPLICATION_ID clientKey:YOUR_CLIENT_KEY];
+        [Parse setApplicationId:@"F5id7B3msGCBnUe5uIMhAvcEjZh9McdOnGRcqoeC" clientKey:@"WZkEEWE0djGDyd7mYvBl4EfBIlOFcy3XXfaQNAu6"];
     //
     // ****************************************************************************
     

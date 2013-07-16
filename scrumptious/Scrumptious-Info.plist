@@ -21,7 +21,7 @@
 		</dict>
 	</dict>
 	<key>CFBundleIdentifier</key>
-	<string>com.facebook.${PRODUCT_NAME:rfc1034identifier}</string>
+	<string>com.parse.okparty</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
@@ -39,14 +39,14 @@
 			<string>Editor</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>fb233936543368280</string>
+				<string>fb481019008651807</string>
 			</array>
 		</dict>
 	</array>
 	<key>CFBundleVersion</key>
 	<string>${FB_BUNDLE_VERSION}</string>
 	<key>FacebookAppID</key>
-	<string>233936543368280</string>
+	<string>481019008651807</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>UIRequiredDeviceCapabilities</key>

@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		3AA770EF17938B7100EF81B9 /* SCGroupViewController.xib in Resources */ = {isa = PBXBuildFile; fileRef = 3AA770EE17938B7100EF81B9 /* SCGroupViewController.xib */; };
+		3AA770F217938CE400EF81B9 /* SCGroupViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 3AA770F117938CE300EF81B9 /* SCGroupViewController.m */; };
 		7411D15D16F3B93E00472D9B /* FBUserSettingsViewResources.bundle in Resources */ = {isa = PBXBuildFile; fileRef = 7411D15B16F3B93E00472D9B /* FBUserSettingsViewResources.bundle */; };
 		7411D15E16F3B93E00472D9B /* FacebookSDKResources.bundle in Resources */ = {isa = PBXBuildFile; fileRef = 7411D15C16F3B93E00472D9B /* FacebookSDKResources.bundle */; };
 		7411D16016F3BA4200472D9B /* FacebookSDK.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 7411D15F16F3BA4200472D9B /* FacebookSDK.framework */; };
@@ -52,6 +54,9 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		3AA770EE17938B7100EF81B9 /* SCGroupViewController.xib */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.xib; name = SCGroupViewController.xib; path = scrumptious/SCGroupViewController.xib; sourceTree = SOURCE_ROOT; };
+		3AA770F017938CE300EF81B9 /* SCGroupViewController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = SCGroupViewController.h; path = scrumptious/SCGroupViewController.h; sourceTree = SOURCE_ROOT; };
+		3AA770F117938CE300EF81B9 /* SCGroupViewController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = SCGroupViewController.m; path = scrumptious/SCGroupViewController.m; sourceTree = SOURCE_ROOT; };
 		7411D15B16F3B93E00472D9B /* FBUserSettingsViewResources.bundle */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.plug-in"; name = FBUserSettingsViewResources.bundle; path = FacebookSDK.framework/Versions/A/Resources/FBUserSettingsViewResources.bundle; sourceTree = "<group>"; };
 		7411D15C16F3B93E00472D9B /* FacebookSDKResources.bundle */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.plug-in"; name = FacebookSDKResources.bundle; path = FacebookSDK.framework/Versions/A/Resources/FacebookSDKResources.bundle; sourceTree = "<group>"; };
 		7411D15F16F3BA4200472D9B /* FacebookSDK.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; path = FacebookSDK.framework; sourceTree = "<group>"; };
@@ -200,6 +205,9 @@
 				B9CD0A83150EA4DD00560A93 /* SCAppDelegate.m */,
 				7449378616DD607200983050 /* SCTimelineViewController.h */,
 				7449378716DD607200983050 /* SCTimelineViewController.m */,
+				3AA770EE17938B7100EF81B9 /* SCGroupViewController.xib */,
+				3AA770F017938CE300EF81B9 /* SCGroupViewController.h */,
+				3AA770F117938CE300EF81B9 /* SCGroupViewController.m */,
 				7449378816DD607200983050 /* SCTimelineViewController.xib */,
 				B9CD0A85150EA4DD00560A93 /* SCViewController.h */,
 				B9CD0A86150EA4DD00560A93 /* SCViewController.m */,
@@ -308,6 +316,7 @@
 				7411D15D16F3B93E00472D9B /* FBUserSettingsViewResources.bundle in Resources */,
 				7411D15E16F3B93E00472D9B /* FacebookSDKResources.bundle in Resources */,
 				749C428F16F93972001189C2 /* EmptyTimeline.png in Resources */,
+				3AA770EF17938B7100EF81B9 /* SCGroupViewController.xib in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -323,6 +332,7 @@
 				B9CD0A87150EA4DD00560A93 /* SCViewController.m in Sources */,
 				7449378916DD607200983050 /* SCTimelineViewController.m in Sources */,
 				746599CA16E95B4C00F4E75C /* MBProgressHUD.m in Sources */,
+				3AA770F217938CE400EF81B9 /* SCGroupViewController.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

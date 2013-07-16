@@ -21,41 +21,48 @@
 #import "TargetConditionals.h"
 #import <Parse/Parse.h>
 
+enum {
+    GroupFieldTag = 0,
+    StatusFieldTag = 1
+};
+
 @interface SCViewController() < UITableViewDataSource, 
                                 FBFriendPickerDelegate,
                                 UINavigationControllerDelegate,
                                 FBPlacePickerDelegate,
                                 CLLocationManagerDelegate,
-                                UIActionSheetDelegate>
+                                UITextFieldDelegate>
 
+@property (strong, nonatomic) IBOutlet UITableView *menuTableView;
 @property (strong, nonatomic) IBOutlet FBProfilePictureView *userProfileImage;
 @property (strong, nonatomic) IBOutlet UILabel *userNameLabel;
 @property (strong, nonatomic) IBOutlet UIButton *announceButton;
-@property (strong, nonatomic) IBOutlet UITableView *menuTableView;
-@property (strong, nonatomic) UIActionSheet *mealPickerActionSheet;
-@property (retain, nonatomic) NSArray *mealTypes;
 
-@property (strong, nonatomic) NSObject<FBGraphPlace> *selectedPlace;
-@property (strong, nonatomic) NSString *selectedMeal;
+
+@property (strong, nonatomic) NSString *status;
+@property (strong, nonatomic) NSString *groupName;
 @property (strong, nonatomic) NSArray *selectedFriends;
 @property (strong, nonatomic) CLLocationManager *locationManager;
-@property (strong, nonatomic) FBCacheDescriptor *placeCacheDescriptor;
+
 @property (strong, nonatomic) UIActivityIndicatorView *activityIndicator;
+@property (strong, nonatomic) CLLocation *currentLocation;
+
+@property (strong, nonatomic) FBCacheDescriptor *placeCacheDescriptor;
 
 @end
 
 @implementation SCViewController
+@synthesize menuTableView = _menuTableView;
 @synthesize userNameLabel = _userNameLabel;
 @synthesize userProfileImage = _userProfileImage;
-@synthesize selectedPlace = _selectedPlace;
-@synthesize selectedMeal = _selectedMeal;
+@synthesize status = _status;
+@synthesize groupName = _groupName;
 @synthesize selectedFriends = _selectedFriends;
+@synthesize currentLocation = _currentLocation;
 @synthesize announceButton = _announceButton;
-@synthesize menuTableView = _menuTableView;
 @synthesize locationManager = _locationManager;
-@synthesize mealPickerActionSheet = _mealPickerActionSheet;
 @synthesize activityIndicator = _activityIndicator;
-@synthesize mealTypes = _mealTypes;
+
 @synthesize placeCacheDescriptor = _placeCacheDescriptor;
 
 - (id)initWithNibName:(NSString *)nibNameOrNil bundle:(NSBundle *)nibBundleOrNil {
@@ -66,179 +73,77 @@
     return self;
 }
 
-#pragma mark - Open Graph Helpers
-
-// This is a helper function that returns an FBGraphObject representing a meal
-- (id<SCOGMeal>)mealObjectForMeal:(NSString *)meal {
-    
-    // We create an FBGraphObject object, but we can treat it as an SCOGMeal with typed
-    // properties, etc. See <FacebookSDK/FBGraphObject.h> for more details.
-    id<SCOGMeal> result = (id<SCOGMeal>)[FBGraphObject graphObject];
-    
-    // Give it a URL of sample data that contains the object's name, title, description, and body.
-    // These OG object URLs were created using the edit open graph feature of the graph tool
-    // at https://www.developers.facebook.com/apps/
-    if ([meal isEqualToString:@"Cheeseburger"]) {
-        result.url = @"http://samples.ogp.me/314483151980285";
-    } else if ([meal isEqualToString:@"Pizza"]) {
-        result.url = @"http://samples.ogp.me/314483221980278";
-    } else if ([meal isEqualToString:@"Hotdog"]) {
-        result.url = @"http://samples.ogp.me/314483265313607";
-    } else if ([meal isEqualToString:@"Italian"]) {
-        result.url = @"http://samples.ogp.me/314483348646932";
-    } else if ([meal isEqualToString:@"French"]) {
-        result.url = @"http://samples.ogp.me/314483375313596";
-    } else if ([meal isEqualToString:@"Chinese"]) {
-        result.url = @"http://samples.ogp.me/314483421980258";
-    } else if ([meal isEqualToString:@"Thai"]) {
-        result.url = @"http://samples.ogp.me/314483451980255";
-    } else if ([meal isEqualToString:@"Indian"]) {
-        result.url = @"http://samples.ogp.me/314483491980251";
-    }
-    return result;
-}
 
 // Creates the Open Graph Action.
-- (void)postOpenGraphAction {    
+- (void)postOpenGraphAction {
+    
+    
     static int retryCount = 0;
     self.announceButton.enabled = false;
-    [self centerAndShowActivityIndicator];
-    [self.view setUserInteractionEnabled:NO];
+    // save the new post to parse
+    [self saveParseObject];
     
-    // First create the Open Graph meal object for the meal we ate.
-    id<SCOGMeal> mealObject = [self mealObjectForMeal:self.selectedMeal];
-    
-    // Now create an Open Graph eat action with the meal, our location, and the people we were with.
-    id<SCOGEatMealAction> action = (id<SCOGEatMealAction>)[FBGraphObject graphObject];
-    action.meal = mealObject;
-    if (self.selectedPlace) {
-        // Facebook SDK * pro-tip *
-        // We don't use the action.place syntax here because, unfortunately, setPlace:
-        // and a few other selectors may be flagged as reserved selectors by Apple's App Store
-        // validation tools. While this doesn't necessarily block App Store approval, it
-        // could slow down the approval process. Falling back to the setObject:forKey:
-        // selector is a useful technique to avoid such naming conflicts.
-        [action setObject:self.selectedPlace forKey:@"place"];
-    }
-    if (self.selectedFriends.count > 0) {
-        [action setObject:self.selectedFriends forKey:@"tags"];
-    }
-
-    // Create the request and post the action to the "me/fb_sample_scrumps:eat" path.
-    [FBRequestConnection
-     startForPostWithGraphPath:@"me/fb_sample_scrumps:eat"
-                   graphObject:action
-            completionHandler:^(FBRequestConnection *connection,
-                         id result,
-                                NSError *error) {
-         [self.activityIndicator stopAnimating];
-         self.announceButton.enabled = YES;
-         [self.view setUserInteractionEnabled:YES];
-         
-         if (!error) {
-             [[[UIAlertView alloc] initWithTitle:@"Result"
-                                         message:[NSString stringWithFormat:@"Posted Open Graph action, id: %@",
-                                                  [result objectForKey:@"id"]]
-                                        delegate:nil
-                               cancelButtonTitle:@"Thanks!"
-                               otherButtonTitles:nil]
-              show];
-             
-             // save the new post to parse
-             [self saveParseObject];
-
-             // start over
-             self.selectedMeal = nil;
-             self.selectedPlace = nil;
-             self.selectedFriends = nil;
-             retryCount = 0;
-             [self updateSelections];
-             
-             // dismiss view controller
-             [self dismissViewControllerAnimated:YES completion:NULL];
-         } else {
-             // Facebook SDK * error handling *
-             // Some Graph API errors are retriable. For this sample, we will have a simple
-             // retry policy of one additional attempt. Please refer to
-             // https://developers.facebook.com/docs/reference/api/errors/ for more information.
-             retryCount++;
-             if (error.fberrorCategory == FBErrorCategoryRetry ||
-                 error.fberrorCategory == FBErrorCategoryThrottling) {
-                 // We also retry on a throttling error message. A more sophisticated app
-                 // should consider a back-off period.
-                 if (retryCount < 2) {
-                     NSLog(@"Retrying open graph post");
-                     [self postOpenGraphAction];
-                     return;
-                 } else {
-                     NSLog(@"Retry count exceeded.");
-                 }
-             }
-             
-             // Facebook SDK * pro-tip *
-             // Users can revoke post permissions on your app externally so it
-             // can be worthwhile to request for permissions again at the point
-             // that they are needed. This sample assumes a simple policy
-             // of re-requesting permissions.
-             if (error.fberrorCategory == FBErrorCategoryPermissions) {
-                 NSLog(@"Re-requesting permissions");
-                 [self requestPermissionAndPost];
-                 return;
-             }
-             
-             // Facebook SDK * error handling *
-             [self presentAlertForError:error];
-         }
-     }];
+    // start over
+    self.status = nil;
+    self.groupName = nil;
+    self.selectedFriends = nil;
+    retryCount = 0;
+    [self updateSelections];
+    self.announceButton.enabled = YES;
+    [self.view setUserInteractionEnabled:YES];
+    // dismiss view controller
+    [self dismissViewControllerAnimated:YES completion:NULL];
 }
 
 // Save the post object to Parse
 - (void)saveParseObject {
     // We create a new Parse object and set the data we want to store
-    PFObject *newPost = [[PFObject alloc] initWithClassName:@"Post"];
+    PFObject *newGroup = [[PFObject alloc] initWithClassName:@"Group"];
     
-    [newPost setObject:self.selectedMeal forKey:@"meal"];
-    [newPost setObject:[self.selectedPlace objectForKey:@"name"] forKey:@"locationName"];
+    // Add fielded data
+    [newGroup setObject:self.status forKey:@"status"];
+    [newGroup setObject:self.groupName forKey:@"groupName"];
 
     // Add location geopoint
     PFGeoPoint *location = [[PFGeoPoint alloc] init];
-    [location setLatitude:[(NSNumber *) [[self.selectedPlace objectForKey:@"location"] objectForKey:@"latitude"] doubleValue]];
-    [location setLongitude:[(NSNumber *) [[self.selectedPlace objectForKey:@"location"] objectForKey:@"longitude"] doubleValue]];
-    [newPost setObject:location forKey:@"location"];
+    [location setLatitude:self.currentLocation.coordinate.latitude];
+    [location setLongitude:self.currentLocation.coordinate.longitude];
+    [newGroup setObject:location forKey:@"location"];
         
     // Create 1-1 relationship between the current user and the post
-    [newPost setObject:[PFUser currentUser] forKey:@"fromUser"];
+    [newGroup setObject:[PFUser currentUser] forKey:@"createdBy"];
 
     // Add the IDs of the associated friends
-    NSMutableArray *friendIDs = [[NSMutableArray alloc] initWithCapacity:self.selectedFriends.count];
+    NSMutableArray *friendsIDs = [[NSMutableArray alloc] initWithCapacity:self.selectedFriends.count];
+    NSMutableArray *friendsDisplay = [[NSMutableArray alloc] initWithCapacity:self.selectedFriends.count];
     for (NSDictionary *friend in self.selectedFriends) {
-        [friendIDs addObject:[friend objectForKey:@"id"]];
+        [friendsIDs addObject:[friend objectForKey:@"id"]];
+        [friendsDisplay addObject:friend];
     }
-    [newPost setObject:friendIDs forKey:@"toUser"];
+    // add the current user to the friends array
+    [friendsIDs addObject:[[PFUser currentUser] objectForKey:@"fbid"]];
+    // add the current user to the friendsDisplay array
+    NSDictionary *displayObj = @{
+                                 @"id" : [[PFUser currentUser] objectForKey:@"fbid"],
+                                 @"name" : [[PFUser currentUser] objectForKey:@"name"]
+                                };
+    
+    [friendsDisplay addObject:displayObj];
+    
+    // set the properties on the group class    
+    [newGroup setObject:friendsIDs forKey:@"friends"];
+    [newGroup setObject:friendsDisplay forKey:@"friendsDisplay"];
+    [newGroup setObject:@"active" forKey:@"status"];
+    
+    // check to see if the user has a current group that has status set to active
+    // if so we want to set that status to inactive
+    
     
     // We save the object! If there's no internet connection, Parse
     // will automatically queue the operation and retry when possible
-    [newPost saveEventually:^(BOOL succeeded, NSError *error) {
+    [newGroup saveEventually:^(BOOL succeeded, NSError *error) {
         NSLog(@"Object saved to Parse! :)");
     }];
-}
-
-// Helper method to request publish permissions and post.
-- (void)requestPermissionAndPost {
-    [(FBSession *)[PFFacebookUtils session] requestNewPublishPermissions:[NSArray arrayWithObject:@"publish_actions"]
-                                          defaultAudience:FBSessionDefaultAudienceEveryone
-                                        completionHandler:^(FBSession *session, NSError *error) {
-                                            if (!error) {
-                                                // Now have the permission
-                                                [self postOpenGraphAction];
-                                            } else {
-                                                // Facebook SDK * error handling *
-                                                // if the operation is not user cancelled
-                                                if (error.fberrorCategory != FBErrorCategoryUserCancelled) {
-                                                    [self presentAlertForError:error];
-                                                }
-                                            }
-                                        }];
 }
 
 - (void) presentAlertForError:(NSError *)error {
@@ -260,13 +165,7 @@
 
 // Handles the user clicking the Announce button by creating an Open Graph Action
 - (IBAction)announce:(id)sender {
-    // Facebook SDK * pro-tip *
-    // Ask for publish permissions only at the time they are needed.
-    if ([PFFacebookUtils.session.permissions indexOfObject:@"publish_actions"] == NSNotFound) {
-        [self requestPermissionAndPost];
-    } else {
-        [self postOpenGraphAction];
-    }
+    [self postOpenGraphAction];
 }
 
 - (void)centerAndShowActivityIndicator {
@@ -294,34 +193,20 @@
     [self dismissModalViewControllerAnimated:YES];
 }
 
-#pragma mark - UIActionSheetDelegate methods
-
-- (void)actionSheet:(UIActionSheet *)actionSheet didDismissWithButtonIndex:(NSInteger)buttonIndex {
-    
-    // If user presses cancel, do nothing
-    if (buttonIndex == actionSheet.cancelButtonIndex)
-        return;
-    
-    // One method handles the delegate action for two action sheets
-    if (actionSheet == self.mealPickerActionSheet) { 
-        self.selectedMeal = [self.mealTypes objectAtIndex:buttonIndex];
-        [self updateSelections];
-        
-    }
-}
 
 #pragma mark - Overrides
 
 - (void)dealloc {
     _locationManager.delegate = nil;
-    _mealPickerActionSheet.delegate = nil;
 }
 
 - (void)viewDidLoad {
     [super viewDidLoad];
     
     self.title = @"Scrumptious";
-
+    
+    [self.locationManager startUpdatingLocation];
+    
     // Get the CLLocationManager going.
     self.locationManager = [[CLLocationManager alloc] init];
     self.locationManager.delegate = self;
@@ -372,7 +257,6 @@
     [[NSNotificationCenter defaultCenter] removeObserver:self];
 
     // Release any retained subviews of the main view.
-    self.mealPickerActionSheet = nil;
 }
 
 - (BOOL)shouldAutorotateToInterfaceOrientation:(UIInterfaceOrientation)interfaceOrientation {
@@ -409,23 +293,44 @@
     
     switch (indexPath.row) {
         case 0:
-            cell.textLabel.text = @"What are you eating?";
-            cell.detailTextLabel.text = @"Select one";
-            cell.imageView.image = [UIImage imageNamed:@"action-eating.png"];
-            break;
+        {
             
+            // Add a UITextField
+            UITextField *textField = [[UITextField alloc] initWithFrame:CGRectMake(110, 10, 185, 30)];
+            
+            textField.placeholder = @"Group Name";
+            textField.tag = GroupFieldTag;
+            textField.keyboardType = UIKeyboardTypeDefault;
+            textField.returnKeyType = UIReturnKeyDone;
+            textField.delegate = self;
+            
+            [cell.contentView addSubview:textField];
+            [cell.contentView bringSubviewToFront:textField];
+            break;
+        }
         case 1:
-            cell.textLabel.text = @"Where are you?";
-            cell.detailTextLabel.text = @"Select one";
-            cell.imageView.image = [UIImage imageNamed:@"action-location.png"];
-            break;
-            
-        case 2:
+        {
             cell.textLabel.text = @"With whom?";
             cell.detailTextLabel.text = @"Select friends";
             cell.imageView.image = [UIImage imageNamed:@"action-people.png"];
             break;
+        }
+        case 2:
+        {
+            // Add a UITextField
+            UITextField *textField = [[UITextField alloc] initWithFrame:CGRectMake(110, 10, 185, 30)];
             
+            textField.placeholder = @"Status";
+            textField.tag = StatusFieldTag;
+            textField.keyboardType = UIKeyboardTypeDefault;
+            textField.returnKeyType = UIReturnKeyDone;
+            textField.delegate = self;
+
+            
+            [cell.contentView addSubview:textField];
+            [cell.contentView bringSubviewToFront:textField];
+            break;
+        }
         default:
             break;
     }
@@ -443,62 +348,7 @@
 
 - (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath {
     switch (indexPath.row) {
-        case 0: {
-            // if we don't yet have an array of meal types, create one now
-            if (!self.mealTypes) {
-                self.mealTypes = [NSArray arrayWithObjects:
-                                  @"Cheeseburger", 
-                                  @"Pizza",
-                                  @"Hotdog",
-                                  @"Italian",
-                                  @"French",
-                                  @"Chinese",
-                                  @"Thai",
-                                  @"Indian",
-                                  nil];
-            }
-            self.mealPickerActionSheet = [[UIActionSheet alloc] initWithTitle:@"Select a meal"
-                                                                     delegate:self
-                                                            cancelButtonTitle:nil
-                                                       destructiveButtonTitle:nil
-                                                            otherButtonTitles:nil];
-                                          
-            for( NSString *meal in self.mealTypes) {
-                [self.mealPickerActionSheet addButtonWithTitle:meal]; 
-            }
-            
-            self.mealPickerActionSheet.cancelButtonIndex = [self.mealPickerActionSheet addButtonWithTitle:@"Cancel"];
-            [self.mealPickerActionSheet showFromToolbar:self.navigationController.toolbar];
-            return;
-        }
-        
         case 1: {
-            FBPlacePickerViewController *placePicker = [[FBPlacePickerViewController alloc] init];
-            
-            placePicker.title = @"Select a restaurant";
-
-            // SIMULATOR BUG:
-            // See http://stackoverflow.com/questions/7003155/error-server-did-not-accept-client-registration-68
-            // at times the simulator fails to fetch a location; when that happens rather than fetch a
-            // a meal near 0,0 -- let's see if we can find something good in Paris
-            if (self.placeCacheDescriptor == nil) {
-                [self setPlaceCacheDescriptorForCoordinates:CLLocationCoordinate2DMake(48.857875, 2.294635)];
-            }
-            
-            [placePicker configureUsingCachedDescriptor:self.placeCacheDescriptor];
-            [placePicker loadData];
-            [placePicker presentModallyFromViewController:self
-                                                 animated:YES
-                                                  handler:^(FBViewController *sender, BOOL donePressed) {
-                                                      if (donePressed) {
-                                                          self.selectedPlace = placePicker.selection;
-                                                          [self updateSelections];
-                                                      }
-                                                  }];
-            return;
-        }
-            
-        case 2: {
             FBFriendPickerViewController *friendPicker = [[FBFriendPickerViewController alloc] init];
             
             // Set up the friend picker to sort and display names the same way as the
@@ -534,12 +384,7 @@
 }
 
 - (void)updateSelections {
-    [self updateCellIndex:0 withSubtitle:(self.selectedMeal ?
-                                          self.selectedMeal :
-                                          @"Select one")];
-    [self updateCellIndex:1 withSubtitle:(self.selectedPlace ?
-                                          self.selectedPlace.name :
-                                          @"Select one")];
+    
     
     NSString *friendsSubtitle = @"Select friends";
     int friendCount = self.selectedFriends.count;
@@ -559,9 +404,26 @@
         id<FBGraphUser> friend = [self.selectedFriends objectAtIndex:0];
         friendsSubtitle = friend.name;
     }
-    [self updateCellIndex:2 withSubtitle:friendsSubtitle];
+    [self updateCellIndex:1 withSubtitle:friendsSubtitle];
     
-    self.announceButton.enabled = (self.selectedMeal != nil);
+    self.announceButton.enabled = (self.groupName != nil);
+}
+
+
+- (void)textFieldDidEndEditing:(UITextField *)textField {
+    if ([textField.text isEqualToString:@""])
+        return;
+    
+    switch (textField.tag) {
+        case GroupFieldTag:
+            self.groupName = textField.text;
+            break;
+        case StatusFieldTag:
+            self.status = textField.text;
+            break;
+        default:
+            break;
+    }
 }
 
 #pragma mark - CLLocationManagerDelegate methods and related
@@ -574,8 +436,20 @@
          oldLocation.coordinate.longitude != newLocation.coordinate.longitude &&
          newLocation.horizontalAccuracy <= 100.0)) {
             // Fetch data at this new location, and remember the cache descriptor.
-            [self setPlaceCacheDescriptorForCoordinates:newLocation.coordinate];
-            [self.placeCacheDescriptor prefetchAndCacheForSession:PFFacebookUtils.session];
+            self.currentLocation = newLocation;
+            
+            // turn the current location into a geopoint
+            PFGeoPoint *location = [[PFGeoPoint alloc] init];
+            [location setLatitude:self.currentLocation.coordinate.latitude];
+            [location setLongitude:self.currentLocation.coordinate.longitude];
+            // set the currentLocation on the current user
+            [[PFUser currentUser] setObject:location forKey:@"currentLocation"];
+            // save the current user object
+            [[PFUser currentUser] saveEventually:^(BOOL succeeded, NSError *error) {
+                if (succeeded) {
+                    NSLog(@"new location updated");
+                }
+            }];
     }
 }
 
@@ -584,6 +458,25 @@
 	NSLog(@"%@", error);
 }
 
+/**
+ Return a location manager -- create one if necessary.
+ */
+- (CLLocationManager *)locationManager {
+    
+    if (_locationManager != nil) {
+		return _locationManager;
+	}
+    
+	_locationManager = [[CLLocationManager alloc] init];
+    _locationManager.desiredAccuracy = kCLLocationAccuracyNearestTenMeters;
+    _locationManager.delegate = self;
+    _locationManager.purpose = @"Your current location is used to demonstrate PFGeoPoint and Geo Queries.";
+    
+	return _locationManager;
+}
+
+
+
 - (void)setPlaceCacheDescriptorForCoordinates:(CLLocationCoordinate2D)coordinates {
     self.placeCacheDescriptor =
     [FBPlacePickerViewController cacheDescriptorWithLocationCoordinate:coordinates
@@ -591,6 +484,11 @@
                                                             searchText:@"restaurant"
                                                           resultsLimit:50
                                                       fieldsForRequest:nil];
+}
+
+- (BOOL)textFieldShouldReturn:(UITextField *)textField {
+    [textField resignFirstResponder];
+    return NO;
 }
 
 #pragma mark -
